@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication — Eventora</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .auth-container {
+            max-width: 460px;
+            margin: 3.5rem auto;
+            background: var(--white);
+            border-radius: var(--radius-xl);
+            padding: 2.5rem;
+            border: 1px solid var(--neutral-200);
+            box-shadow: var(--shadow-lg);
+        }
+        .auth-tabs {
+            display: flex;
+            background: var(--neutral-100);
+            border-radius: var(--radius-md);
+            padding: 0.35rem;
+            margin-bottom: 2rem;
+        }
+        .auth-tab {
+            flex: 1;
+            padding: 0.65rem;
+            border: none;
+            background: none;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--neutral-600);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .auth-tab.active {
+            background: var(--white);
+            color: var(--purple-deep);
+            box-shadow: var(--shadow-sm);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar Mount -->
+    <div id="navbar-mount"></div>
+
+    <main class="container">
+        <div class="auth-container">
+            
+            <div style="text-align: center; margin-bottom: 1.5rem;">
+                <div class="brand-icon" style="margin: 0 auto 0.75rem auto; width: 48px; height: 48px; font-size: 1.5rem;">⚡</div>
+                <h1 style="font-size: 1.6rem; font-weight: 800; color: var(--purple-deep);">Welcome to Eventora</h1>
+                <p style="color: var(--neutral-500); font-size: 0.9rem; margin-top: 0.2rem;">
+                    Sign in or register to attend campus events
+                </p>
+            </div>
+
+            <!-- Tab Switcher -->
+            <div class="auth-tabs">
+                <button id="tab-login" class="auth-tab active" onclick="switchTab('login')">Sign In</button>
+                <button id="tab-signup" class="auth-tab" onclick="switchTab('signup')">Create Account</button>
+            </div>
+
+            <!-- Error Notification Banner -->
+            <div id="auth-error" style="display: none; padding: 0.75rem 1rem; background: var(--danger-100); color: var(--danger-600); border-radius: var(--radius-md); font-size: 0.85rem; margin-bottom: 1.25rem;"></div>
+
+            <!-- 1. LOGIN FORM -->
+            <form id="form-login" style="display: flex; flex-direction: column; gap: 1.25rem;">
+                <div class="form-group">
+                    <label class="form-label" for="login-email">Email Address</label>
+                    <input type="email" id="login-email" class="form-control" placeholder="you@student.edu" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="login-password">Password</label>
+                    <input type="password" id="login-password" class="form-control" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" style="margin-top: 0.5rem; padding: 0.8rem;">
+                    Sign In to Portal
+                </button>
+            </form>
+
+            <!-- 2. SIGNUP FORM -->
+            <form id="form-signup" style="display: none; flex-direction: column; gap: 1.25rem;">
+                <div class="form-group">
+                    <label class="form-label" for="signup-name">Full Name</label>
+                    <input type="text" id="signup-name" class="form-control" placeholder="e.g. Ananya Rao" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="signup-email">College Email Address</label>
+                    <input type="email" id="signup-email" class="form-control" placeholder="ananya@mrecw.edu" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="signup-college">Select Your College</label>
+                    <select id="signup-college" class="form-control" required>
+                        <option value="">Select your institution...</option>
+                        <!-- Loaded dynamically -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="signup-password">Create Password (min. 6 characters)</label>
+                    <input type="password" id="signup-password" class="form-control" placeholder="••••••••" minlength="6" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" style="margin-top: 0.5rem; padding: 0.8rem;">
+                    Create Student Account
+                </button>
+            </form>
+
+        </div>
+    </main>
+
+    <!-- Footer Mount -->
+    <div id="footer-mount"></div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/navbar.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadColleges();
+
+            const mode = getUrlParam('mode');
+            if (mode === 'signup') {
+                switchTab('signup');
+            }
+
+            document.getElementById('form-login').addEventListener('submit', handleLogin);
+            document.getElementById('form-signup').addEventListener('submit', handleSignup);
+        });
+
+        async function loadColleges() {
+            try {
+                const res = await apiRequest('/auth/colleges');
+                const sel = document.getElementById('signup-college');
+                if (res.data && res.data.length > 0) {
+                    sel.innerHTML = `<option value="">Select your institution...</option>` +
+                        res.data.map(c => `<option value="${c.id}">${escapeHtml(c.name)} (${c.identifier.toUpperCase()})</option>`).join('');
+                }
+            } catch (err) {
+                console.error('Error loading colleges', err);
+            }
+        }
+
+        function switchTab(tab) {
+            clearError();
+            const tabLogin = document.getElementById('tab-login');
+            const tabSignup = document.getElementById('tab-signup');
+            const formLogin = document.getElementById('form-login');
+            const formSignup = document.getElementById('form-signup');
+
+            if (tab === 'login') {
+                tabLogin.classList.add('active');
+                tabSignup.classList.remove('active');
+                formLogin.style.display = 'flex';
+                formSignup.style.display = 'none';
+            } else {
+                tabSignup.classList.add('active');
+                tabLogin.classList.remove('active');
+                formSignup.style.display = 'flex';
+                formLogin.style.display = 'none';
+            }
+        }
+
+        function showError(msg) {
+            const errDiv = document.getElementById('auth-error');
+            errDiv.textContent = msg;
+            errDiv.style.display = 'block';
+        }
+
+        function clearError() {
+            const errDiv = document.getElementById('auth-error');
+            errDiv.style.display = 'none';
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            clearError();
+
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+            const btn = e.target.querySelector('button[type="submit"]');
+
+            btn.disabled = true;
+            btn.textContent = 'Signing in...';
+
+            try {
+                const res = await apiRequest('/auth/login', {
+                    method: 'POST',
+                    body: JSON.stringify({ email, password })
+                });
+
+                setAuthToken(res.access_token);
+                setCurrentUser(res.user);
+
+                showToast(`Welcome back, ${res.user.full_name}!`, 'success');
+
+                const redirect = getUrlParam('redirect') || (res.user.role === 'student' ? '/dashboard.html' : '/admin.html');
+                setTimeout(() => {
+                    window.location.href = redirect;
+                }, 600);
+            } catch (err) {
+                showError(err.message);
+                btn.disabled = false;
+                btn.textContent = 'Sign In to Portal';
+            }
+        }
+
+        async function handleSignup(e) {
+            e.preventDefault();
+            clearError();
+
+            const full_name = document.getElementById('signup-name').value.trim();
+            const email = document.getElementById('signup-email').value.trim();
+            const college_id = document.getElementById('signup-college').value;
+            const password = document.getElementById('signup-password').value;
+            const btn = e.target.querySelector('button[type="submit"]');
+
+            btn.disabled = true;
+            btn.textContent = 'Creating account...';
+
+            try {
+                const res = await apiRequest('/auth/signup', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        full_name,
+                        email,
+                        college_id: college_id || null,
+                        password
+                    })
+                });
+
+                showToast('Registration successful! Please sign in.', 'success');
+                switchTab('login');
+                document.getElementById('login-email').value = email;
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Create Student Account';
+            }
+        }
+    </script>
+</body>
+</html>
+

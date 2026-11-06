@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Tickets & Registrations — Eventora</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .ticket-card {
+            background: var(--white);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--neutral-200);
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+            transition: var(--transition);
+        }
+        .ticket-card:hover {
+            box-shadow: var(--shadow-md);
+            border-color: var(--lavender-accent);
+        }
+        .ticket-accent {
+            width: 8px;
+            background: linear-gradient(180deg, var(--purple-main), var(--primary-600));
+        }
+        .ticket-accent.checked_in {
+            background: var(--success-600);
+        }
+        .ticket-accent.cancelled {
+            background: var(--neutral-300);
+        }
+        .ticket-body {
+            padding: 1.5rem;
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+        @media (max-width: 640px) {
+            .ticket-body {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar Mount -->
+    <div id="navbar-mount"></div>
+
+    <main class="container" style="padding-top: 2.5rem; padding-bottom: 4rem;">
+        
+        <!-- Welcome Header -->
+        <div style="background: linear-gradient(135deg, var(--lavender-bg), var(--primary-50)); border: 1px solid var(--lavender-accent); border-radius: var(--radius-xl); padding: 2rem; margin-bottom: 2.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h1 id="user-greeting" style="font-size: 1.85rem; font-weight: 800; color: var(--purple-deep);">
+                        Student Dashboard
+                    </h1>
+                    <p id="user-subtext" style="color: var(--neutral-600); font-size: 0.95rem; margin-top: 0.2rem;">
+                        View your event passes, attendance statuses, and digital QR codes.
+                    </p>
+                </div>
+                <a href="/events.html" class="btn btn-primary">
+                    + Register for More Events
+                </a>
+            </div>
+        </div>
+
+        <!-- Section Title -->
+        <div class="section-header" style="margin-top: 0;">
+            <div>
+                <h2 class="section-title">My Event Tickets</h2>
+                <p class="section-subtitle">Present your ticket QR code at the event entrance for swift check-in.</p>
+            </div>
+        </div>
+
+        <!-- Tickets List Container -->
+        <div id="tickets-container">
+            <div style="text-align: center; padding: 3rem; color: var(--neutral-500);">
+                Loading your registrations...
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Ticket QR Modal -->
+    <div id="qr-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="modal-event-title" class="modal-title">Event Ticket Pass</h3>
+                <button class="modal-close" onclick="closeQrModal()">×</button>
+            </div>
+            <div class="modal-body" style="text-align: center;">
+                <p id="modal-event-venue" style="color: var(--neutral-600); font-size: 0.9rem; margin-bottom: 1rem;"></p>
+
+                <div style="background: var(--neutral-50); padding: 1.5rem; border-radius: var(--radius-lg); display: inline-block; border: 2px dashed var(--lavender-accent); margin-bottom: 1.25rem;">
+                    <img id="modal-qr-img" src="" alt="Ticket QR Code" style="width: 220px; height: 220px; display: block; margin: 0 auto;">
+                    <div id="modal-token-display" style="font-family: monospace; font-size: 0.75rem; color: var(--neutral-500); margin-top: 0.75rem; word-break: break-all;"></div>
+                </div>
+
+                <div id="modal-status-badge" style="margin-bottom: 1.5rem;"></div>
+
+                <p style="font-size: 0.8rem; color: var(--neutral-500);">
+                    Show this QR code to the college event administrator at the venue check-in desk.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Mount -->
+    <div id="footer-mount"></div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/navbar.js"></script>
+    <script>
+        let myRegistrations = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = getCurrentUser();
+            if (!user) {
+                window.location.href = '/auth.html';
+                return;
+            }
+
+            document.getElementById('user-greeting').textContent = `Welcome, ${user.full_name}! 👋`;
+            if (user.college?.name) {
+                document.getElementById('user-subtext').textContent = `Student affiliated with ${user.college.name}`;
+            }
+
+            await loadMyTickets();
+        });
+
+        async function loadMyTickets() {
+            const container = document.getElementById('tickets-container');
+            try {
+                const res = await apiRequest('/registrations/my');
+                myRegistrations = res.data || [];
+
+                if (myRegistrations.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 4rem 1.5rem; background: var(--white); border-radius: var(--radius-xl); border: 1px dashed var(--neutral-300);">
+                            <div style="font-size: 3rem; margin-bottom: 0.75rem;">🎟️</div>
+                            <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--neutral-800);">No registrations yet</h3>
+                            <p style="color: var(--neutral-500); font-size: 0.95rem; margin: 0.35rem 0 1.5rem;">
+                                You haven't registered for any upcoming events or workshops.
+                            </p>
+                            <a href="/events.html" class="btn btn-primary">Browse Events Catalog →</a>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = myRegistrations.map((reg, idx) => renderTicket(reg, idx)).join('');
+            } catch (err) {
+                container.innerHTML = `
+                    <div style="padding: 2rem; color: var(--danger-600); text-align: center;">
+                        Failed to load tickets: ${escapeHtml(err.message)}
+                    </div>
+                `;
+            }
+        }
+
+        function renderTicket(reg, idx) {
+            const ev = reg.events;
+            const status = reg.status;
+
+            let badgeHtml = '<span class="badge badge-purple">REGISTERED</span>';
+            if (status === 'checked_in') {
+                badgeHtml = '<span class="badge badge-success">✓ CHECKED IN</span>';
+            } else if (status === 'cancelled') {
+                badgeHtml = '<span class="badge badge-danger">CANCELLED</span>';
+            }
+
+            return `
+                <div class="ticket-card">
+                    <div class="ticket-accent ${status}"></div>
+                    <div class="ticket-body">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.4rem;">
+                                <span class="category-tag">${escapeHtml(ev.category || 'General')}</span>
+                                ${badgeHtml}
+                            </div>
+                            <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--neutral-900); margin-bottom: 0.35rem;">
+                                ${escapeHtml(ev.title)}
+                            </h3>
+                            <p style="font-size: 0.85rem; color: var(--neutral-600); margin-bottom: 0.2rem;">
+                                📅 ${formatDateTime(ev.start_at)}
+                            </p>
+                            <p style="font-size: 0.85rem; color: var(--neutral-600);">
+                                📍 ${escapeHtml(ev.venue)}
+                            </p>
+                            ${reg.checkin_at ? `<p style="font-size: 0.8rem; color: var(--success-600); font-weight: 600; margin-top: 0.35rem;">Check-in recorded at: ${formatDateTime(reg.checkin_at)}</p>` : ''}
+                        </div>
+
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            ${status === 'registered' ? `
+                                <button onclick="openQrModal(${idx})" class="btn btn-primary btn-sm">
+                                    📱 View QR Ticket
+                                </button>
+                                <button onclick="cancelRegistration('${reg.id}')" class="btn btn-secondary btn-sm" style="color: var(--danger-600);">
+                                    Cancel
+                                </button>
+                            ` : ''}
+
+                            ${status === 'checked_in' ? `
+                                <button onclick="openQrModal(${idx})" class="btn btn-lavender btn-sm">
+                                    View Pass
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openQrModal(idx) {
+            const reg = myRegistrations[idx];
+            if (!reg) return;
+
+            document.getElementById('modal-event-title').textContent = reg.events.title;
+            document.getElementById('modal-event-venue').textContent = `📍 ${reg.events.venue} • ${formatDateTime(reg.events.start_at)}`;
+            document.getElementById('modal-token-display').textContent = `Token: ${reg.qr_token}`;
+
+            // Load generated QR image if available or fallback to a live QR service
+            const qrImg = reg.qr_image || `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${reg.qr_token}`;
+            document.getElementById('modal-qr-img').src = qrImg;
+
+            let statusHtml = '<span class="badge badge-purple" style="font-size: 0.85rem;">Active Ticket</span>';
+            if (reg.status === 'checked_in') {
+                statusHtml = '<span class="badge badge-success" style="font-size: 0.85rem;">Checked In</span>';
+            }
+            document.getElementById('modal-status-badge').innerHTML = statusHtml;
+
+            document.getElementById('qr-modal').classList.add('active');
+        }
+
+        function closeQrModal() {
+            document.getElementById('qr-modal').classList.remove('active');
+        }
+
+        async function cancelRegistration(regId) {
+            if (!confirm('Are you sure you want to cancel this registration? Your reserved seat will be released.')) {
+                return;
+            }
+
+            try {
+                await apiRequest(`/registrations/${regId}`, { method: 'DELETE' });
+                showToast('Registration cancelled. Seat released.', 'info');
+                await loadMyTickets();
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eventora — College Event Management & Registration Portal</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+    <!-- Navbar Mount -->
+    <div id="navbar-mount"></div>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-tag">
+                    <span>✨</span> College Events & Technical Symposiums
+                </div>
+                <h1 class="hero-title">
+                    Discover, Register & Attend <span>College Events</span> with Instant QR Tickets.
+                </h1>
+                <p class="hero-desc">
+                    Eventora is the modern multi-college portal connecting students to hackathons, cultural fests, and research conclaves across institutions with capacity-safe reservations and digital check-ins.
+                </p>
+                <div class="hero-actions">
+                    <a href="/events.html" class="btn btn-primary" style="font-size: 1.05rem; padding: 0.8rem 1.8rem;">
+                        🔍 Explore Events
+                    </a>
+                    <a href="/auth.html?mode=signup" class="btn btn-secondary" style="font-size: 1.05rem; padding: 0.8rem 1.8rem;">
+                        Create Student Account
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Banner -->
+    <section class="stats-banner">
+        <div class="container stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">100%</div>
+                <div class="stat-label">Capacity-Safe Bookings</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">⚡ Real-Time</div>
+                <div class="stat-label">Single-Scan QR Check-In</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">🏛️ MRECW</div>
+                <div class="stat-label">Premier Partner Campus</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">🔒 Multi-Tenant</div>
+                <div class="stat-label">Isolated College Admin</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Featured College Spotlight -->
+    <section style="padding: 3rem 0; background: var(--lavender-bg); border-bottom: 1px solid var(--lavender-accent);">
+        <div class="container" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem;">
+            <div>
+                <span class="badge badge-purple" style="margin-bottom: 0.5rem;">Featured Institution</span>
+                <h2 style="font-size: 1.6rem; color: var(--purple-deep); font-weight: 800;">
+                    Malla Reddy Engineering College for Women (MRECW)
+                </h2>
+                <p style="color: var(--neutral-600); max-width: 600px; margin-top: 0.25rem;">
+                    Empowering women in engineering and leadership. Explore exclusive technical fests, AI conclaves, and hackathons hosted at MRECW campus.
+                </p>
+            </div>
+            <div>
+                <a href="/events.html?college=mrecw" class="btn btn-primary">
+                    View MRECW Events →
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Featured Events Section -->
+    <main class="container" style="padding-top: 2.5rem; padding-bottom: 4rem;">
+        <div class="section-header">
+            <div>
+                <h2 class="section-title">Featured Upcoming Events</h2>
+                <p class="section-subtitle">Reserve your seat early before capacity is filled.</p>
+            </div>
+            <a href="/events.html" class="btn btn-lavender btn-sm">View All Events →</a>
+        </div>
+
+        <div id="featured-events-grid" class="events-grid">
+            <!-- Populated via JavaScript -->
+            <div style="grid-column: 1 / -1; text-align: center; padding: 3rem; color: var(--neutral-500);">
+                Loading featured events...
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer Mount -->
+    <div id="footer-mount"></div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/navbar.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const grid = document.getElementById('featured-events-grid');
+            try {
+                const res = await apiRequest('/events');
+                if (!res.data || res.data.length === 0) {
+                    grid.innerHTML = `
+                        <div style="grid-column: 1 / -1; text-align: center; padding: 3rem; background: var(--white); border-radius: var(--radius-lg); border: 1px dashed var(--neutral-300);">
+                            <p style="font-size: 1.1rem; color: var(--neutral-600); font-weight: 600;">No upcoming events found.</p>
+                            <p style="color: var(--neutral-500); font-size: 0.9rem; margin-top: 0.25rem;">Make sure to run the Supabase setup script to seed demo events!</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                grid.innerHTML = res.data.slice(0, 3).map(ev => renderEventCard(ev)).join('');
+            } catch (err) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--danger-600);">
+                        Failed to load events. Ensure backend server is running and database is configured.
+                    </div>
+                `;
+            }
+        });
+
+        function renderEventCard(ev) {
+            const banner = ev.banner_url || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80';
+            const collegeName = ev.colleges?.name || 'Partner College';
+            const pct = Math.min(100, Math.round(((ev.capacity - ev.remaining_seats) / ev.capacity) * 100));
+
+            return `
+                <div class="event-card">
+                    <img src="${escapeHtml(banner)}" alt="${escapeHtml(ev.title)}" class="event-banner" loading="lazy">
+                    <div class="event-body">
+                        <div class="event-meta">
+                            <span class="category-tag">${escapeHtml(ev.category || 'General')}</span>
+                            <span class="college-badge">🏛️ ${escapeHtml(ev.colleges?.identifier?.toUpperCase() || 'COLLEGE')}</span>
+                        </div>
+                        <h3 class="event-title">${escapeHtml(ev.title)}</h3>
+                        <p class="event-desc">${escapeHtml(ev.description)}</p>
+                        
+                        <div class="event-details">
+                            <div class="detail-row">
+                                <span>📅</span>
+                                <span>${formatDateTime(ev.start_at)}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span>📍</span>
+                                <span>${escapeHtml(ev.venue)}</span>
+                            </div>
+                        </div>
+
+                        <div class="capacity-meter">
+                            <div class="meter-header">
+                                <span style="color: var(--neutral-600);">Seats: ${ev.capacity - ev.remaining_seats} / ${ev.capacity}</span>
+                                <span style="color: ${ev.is_sold_out ? 'var(--danger-600)' : 'var(--purple-main)'};">
+                                    ${ev.is_sold_out ? 'SOLD OUT' : `${ev.remaining_seats} left`}
+                                </span>
+                            </div>
+                            <div class="meter-bar">
+                                <div class="meter-fill ${ev.is_sold_out ? 'sold-out' : ''}" style="width: ${pct}%"></div>
+                            </div>
+                        </div>
+
+                        <a href="/event.html?id=${ev.id}" class="btn btn-primary btn-block">
+                            View Details & Register →
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
+

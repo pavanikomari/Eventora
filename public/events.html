@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discover Events — Eventora</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+    <!-- Navbar Mount -->
+    <div id="navbar-mount"></div>
+
+    <main class="container" style="padding-top: 2rem; padding-bottom: 4rem;">
+        
+        <!-- Header -->
+        <div style="margin-bottom: 1.5rem;">
+            <h1 style="font-size: 2.2rem; font-weight: 800; color: var(--neutral-900);">Discover College Events</h1>
+            <p style="color: var(--neutral-600); font-size: 1.05rem;">
+                Browse workshops, technical symposia, and cultural fests across participating colleges.
+            </p>
+        </div>
+
+        <!-- Filter & Search Card -->
+        <section class="filter-card">
+            <div class="filter-grid">
+                <div class="form-group">
+                    <label class="form-label" for="search-input">Search Events</label>
+                    <input type="text" id="search-input" class="form-control" placeholder="Search by title, topic, or venue...">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="college-filter">Filter by College</label>
+                    <select id="college-filter" class="form-control">
+                        <option value="all">All Colleges</option>
+                        <option value="mrecw">MRECW (Malla Reddy)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="category-filter">Category</label>
+                    <select id="category-filter" class="form-control">
+                        <option value="all">All Categories</option>
+                        <option value="Technology">Technology</option>
+                        <option value="Leadership">Leadership</option>
+                        <option value="Hackathon">Hackathon</option>
+                        <option value="Symposium">Symposium</option>
+                        <option value="Cultural">Cultural</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <!-- Events Grid -->
+        <div id="events-grid" class="events-grid">
+            <div style="grid-column: 1 / -1; text-align: center; padding: 3rem; color: var(--neutral-500);">
+                Loading events...
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer Mount -->
+    <div id="footer-mount"></div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/navbar.js"></script>
+    <script>
+        let allEvents = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadColleges();
+
+            // Check URL search parameters
+            const urlCollege = getUrlParam('college');
+            if (urlCollege) {
+                document.getElementById('college-filter').value = urlCollege;
+            }
+
+            await fetchEvents();
+
+            // Attach event listeners
+            document.getElementById('search-input').addEventListener('input', debounce(fetchEvents, 300));
+            document.getElementById('college-filter').addEventListener('change', fetchEvents);
+            document.getElementById('category-filter').addEventListener('change', fetchEvents);
+        });
+
+        async function loadColleges() {
+            try {
+                const res = await apiRequest('/auth/colleges');
+                if (res.data && res.data.length > 0) {
+                    const sel = document.getElementById('college-filter');
+                    sel.innerHTML = `<option value="all">All Colleges</option>` + 
+                        res.data.map(c => `<option value="${escapeHtml(c.identifier)}">${escapeHtml(c.name)}</option>`).join('');
+                }
+            } catch (e) {
+                console.error('Failed to load colleges dropdown', e);
+            }
+        }
+
+        async function fetchEvents() {
+            const grid = document.getElementById('events-grid');
+            const search = document.getElementById('search-input').value.trim();
+            const college = document.getElementById('college-filter').value;
+            const category = document.getElementById('category-filter').value;
+
+            const params = new URLSearchParams();
+            if (search) params.append('search', search);
+            if (college && college !== 'all') params.append('college', college);
+            if (category && category !== 'all') params.append('category', category);
+
+            try {
+                const res = await apiRequest(`/events?${params.toString()}`);
+                allEvents = res.data || [];
+
+                if (allEvents.length === 0) {
+                    grid.innerHTML = `
+                        <div style="grid-column: 1 / -1; text-align: center; padding: 4rem 1.5rem; background: var(--white); border-radius: var(--radius-xl); border: 1px dashed var(--neutral-300);">
+                            <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">🔍</div>
+                            <h3 style="font-size: 1.25rem; color: var(--neutral-800); font-weight: 700;">No matching events found</h3>
+                            <p style="color: var(--neutral-500); font-size: 0.95rem; margin-top: 0.35rem;">
+                                Try adjusting your search keywords or college filters.
+                            </p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                grid.innerHTML = allEvents.map(ev => renderEventCard(ev)).join('');
+            } catch (err) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 3rem; color: var(--danger-600);">
+                        Error loading events: ${escapeHtml(err.message)}
+                    </div>
+                `;
+            }
+        }
+
+        function renderEventCard(ev) {
+            const banner = ev.banner_url || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80';
+            const collegeName = ev.colleges?.name || 'Partner College';
+            const pct = Math.min(100, Math.round(((ev.capacity - ev.remaining_seats) / ev.capacity) * 100));
+
+            return `
+                <div class="event-card">
+                    <img src="${escapeHtml(banner)}" alt="${escapeHtml(ev.title)}" class="event-banner" loading="lazy">
+                    <div class="event-body">
+                        <div class="event-meta">
+                            <span class="category-tag">${escapeHtml(ev.category || 'General')}</span>
+                            <span class="college-badge">🏛️ ${escapeHtml(ev.colleges?.identifier?.toUpperCase() || 'COLLEGE')}</span>
+                        </div>
+                        <h3 class="event-title">${escapeHtml(ev.title)}</h3>
+                        <p class="event-desc">${escapeHtml(ev.description)}</p>
+                        
+                        <div class="event-details">
+                            <div class="detail-row">
+                                <span>📅</span>
+                                <span>${formatDateTime(ev.start_at)}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span>📍</span>
+                                <span>${escapeHtml(ev.venue)}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span>🏛️</span>
+                                <span style="font-size: 0.8rem; color: var(--purple-deep); font-weight: 600;">
+                                    ${escapeHtml(collegeName)}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="capacity-meter">
+                            <div class="meter-header">
+                                <span style="color: var(--neutral-600);">Seats: ${ev.capacity - ev.remaining_seats} / ${ev.capacity}</span>
+                                <span style="color: ${ev.is_sold_out ? 'var(--danger-600)' : 'var(--purple-main)'}; font-weight: 700;">
+                                    ${ev.is_sold_out ? 'SOLD OUT' : `${ev.remaining_seats} available`}
+                                </span>
+                            </div>
+                            <div class="meter-bar">
+                                <div class="meter-fill ${ev.is_sold_out ? 'sold-out' : ''}" style="width: ${pct}%"></div>
+                            </div>
+                        </div>
+
+                        <a href="/event.html?id=${ev.id}" class="btn btn-primary btn-block">
+                            View Event & Register →
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+    </script>
+</body>
+</html>
+

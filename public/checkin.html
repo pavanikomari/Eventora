@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Check-In Scanner — Eventora</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .scanner-card {
+            max-width: 620px;
+            margin: 2rem auto;
+            background: var(--white);
+            border-radius: var(--radius-xl);
+            padding: 2.5rem;
+            border: 1px solid var(--neutral-200);
+            box-shadow: var(--shadow-lg);
+            text-align: center;
+        }
+        .scan-result-card {
+            margin-top: 1.5rem;
+            padding: 1.5rem;
+            border-radius: var(--radius-lg);
+            text-align: left;
+            display: none;
+            animation: slideUp 0.3s ease;
+        }
+        .scan-result-card.success {
+            background: var(--success-100);
+            border: 2px solid #10b981;
+            color: #064e3b;
+        }
+        .scan-result-card.error {
+            background: var(--danger-100);
+            border: 2px solid #ef4444;
+            color: #7f1d1d;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar Mount -->
+    <div id="navbar-mount"></div>
+
+    <main class="container" style="padding-top: 2rem; padding-bottom: 4rem;">
+        
+        <div class="scanner-card">
+            <div class="brand-icon" style="margin: 0 auto 1rem auto; width: 54px; height: 54px; font-size: 1.6rem;">
+                🎟️
+            </div>
+            <h1 style="font-size: 1.85rem; font-weight: 800; color: var(--purple-deep);">
+                Attendance Check-In Station
+            </h1>
+            <p style="color: var(--neutral-600); font-size: 0.95rem; margin-top: 0.35rem; margin-bottom: 2rem;">
+                Scan or paste student QR ticket tokens to record verified attendance.
+            </p>
+
+            <form id="checkin-form">
+                <div class="form-group" style="text-align: left; margin-bottom: 1.25rem;">
+                    <label class="form-label" for="token-input">Ticket QR Token (UUID)</label>
+                    <input 
+                        type="text" 
+                        id="token-input" 
+                        class="form-control" 
+                        placeholder="e.g. 8f65d64e-b52b-4d43-98fe-89dc7e36c581" 
+                        autofocus 
+                        required
+                        style="font-family: monospace; font-size: 1rem; padding: 0.8rem;"
+                    >
+                </div>
+
+                <button type="submit" id="checkin-btn" class="btn btn-primary btn-block" style="padding: 0.85rem; font-size: 1.05rem;">
+                    ⚡ Validate & Check In Attendee
+                </button>
+            </form>
+
+            <!-- Result Feedback Box -->
+            <div id="result-box" class="scan-result-card"></div>
+        </div>
+
+        <!-- Recent Check-Ins Stream -->
+        <div style="max-width: 620px; margin: 0 auto;">
+            <div class="section-header" style="margin-top: 1rem;">
+                <div>
+                    <h3 style="font-size: 1.2rem; font-weight: 700; color: var(--neutral-900);">Checked-In Attendees (Session)</h3>
+                    <p style="font-size: 0.85rem; color: var(--neutral-500);">Real-time stream of participants processed at this desk.</p>
+                </div>
+                <span id="session-count" class="badge badge-success">0 Attendees</span>
+            </div>
+
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Attendee</th>
+                            <th>Event</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="session-tbody">
+                        <tr>
+                            <td colspan="3" style="text-align: center; padding: 2rem; color: var(--neutral-400);">
+                                No check-ins in this session yet.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer Mount -->
+    <div id="footer-mount"></div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/navbar.js"></script>
+    <script>
+        const sessionAttendees = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = getCurrentUser();
+            if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) {
+                showToast('Administrator privileges required to access Check-In portal.', 'error');
+                setTimeout(() => {
+                    window.location.href = '/auth.html';
+                }, 800);
+                return;
+            }
+
+            // Check if token was passed via URL parameter (e.g. when opening from a camera QR reader)
+            const urlToken = getUrlParam('token');
+            if (urlToken) {
+                document.getElementById('token-input').value = urlToken;
+                processCheckin(urlToken);
+            }
+
+            document.getElementById('checkin-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const token = document.getElementById('token-input').value.trim();
+                if (token) processCheckin(token);
+            });
+        });
+
+        async function processCheckin(qr_token) {
+            const btn = document.getElementById('checkin-btn');
+            const resultBox = document.getElementById('result-box');
+            btn.disabled = true;
+            btn.textContent = 'Verifying Ticket...';
+            resultBox.style.display = 'none';
+
+            try {
+                const res = await apiRequest('/registrations/checkin', {
+                    method: 'POST',
+                    body: JSON.stringify({ qr_token })
+                });
+
+                // Display success
+                resultBox.className = 'scan-result-card success';
+                resultBox.innerHTML = `
+                    <div style="font-weight: 800; font-size: 1.2rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
+                        <span>✅</span> <span>CHECK-IN APPROVED</span>
+                    </div>
+                    <div style="font-size: 1.05rem; font-weight: 700; color: var(--neutral-900);">${escapeHtml(res.participant.name)}</div>
+                    <div style="font-size: 0.9rem; color: var(--neutral-600); margin-bottom: 0.5rem;">${escapeHtml(res.participant.email)}</div>
+                    <div style="font-size: 0.85rem; padding-top: 0.5rem; border-top: 1px solid rgba(0,0,0,0.1);">
+                        <strong>Event:</strong> ${escapeHtml(res.participant.event)}<br>
+                        <strong>Timestamp:</strong> ${formatDateTime(res.participant.checkin_at)}
+                    </div>
+                `;
+                resultBox.style.display = 'block';
+
+                // Add to session list
+                sessionAttendees.unshift({
+                    name: res.participant.name,
+                    event: res.participant.event,
+                    time: new Date()
+                });
+                renderSessionList();
+
+                // Clear input
+                document.getElementById('token-input').value = '';
+                showToast(`Checked in: ${res.participant.name}`, 'success');
+            } catch (err) {
+                resultBox.className = 'scan-result-card error';
+                resultBox.innerHTML = `
+                    <div style="font-weight: 800; font-size: 1.15rem; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.4rem;">
+                        <span>❌</span> <span>CHECK-IN REJECTED</span>
+                    </div>
+                    <p style="font-size: 0.95rem;">${escapeHtml(err.message)}</p>
+                `;
+                resultBox.style.display = 'block';
+                showToast(err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '⚡ Validate & Check In Attendee';
+                document.getElementById('token-input').focus();
+            }
+        }
+
+        function renderSessionList() {
+            document.getElementById('session-count').textContent = `${sessionAttendees.length} Attendees`;
+            const tbody = document.getElementById('session-tbody');
+
+            if (sessionAttendees.length === 0) return;
+
+            tbody.innerHTML = sessionAttendees.map(item => `
+                <tr>
+                    <td><strong>${escapeHtml(item.name)}</strong></td>
+                    <td style="font-size: 0.85rem;">${escapeHtml(item.event)}</td>
+                    <td style="font-size: 0.8rem; color: var(--neutral-500);">${formatDateTime(item.time)}</td>
+                </tr>
+            `).join('');
+        }
+    </script>
+</body>
+</html>
+

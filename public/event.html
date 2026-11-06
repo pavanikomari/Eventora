@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Details — Eventora</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+    <!-- Navbar Mount -->
+    <div id="navbar-mount"></div>
+
+    <main class="container" style="padding-top: 2.5rem; padding-bottom: 4rem;">
+        
+        <div id="event-loading" style="text-align: center; padding: 4rem; color: var(--neutral-500);">
+            Loading event information...
+        </div>
+
+        <div id="event-container" style="display: none;">
+            
+            <a href="/events.html" style="display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 600; margin-bottom: 1.5rem;">
+                ← Back to All Events
+            </a>
+
+            <!-- Event Card Layout -->
+            <div style="background: var(--white); border-radius: var(--radius-xl); overflow: hidden; border: 1px solid var(--neutral-200); box-shadow: var(--shadow-md);">
+                
+                <img id="event-banner" src="" alt="Event Banner" style="width: 100%; height: 340px; object-fit: cover;">
+
+                <div style="padding: 2.5rem;">
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <span id="event-category" class="category-tag">Category</span>
+                            <span id="event-college-badge" class="badge badge-purple">🏛️ College</span>
+                        </div>
+                        <div id="status-pill"></div>
+                    </div>
+
+                    <h1 id="event-title" style="font-size: 2.3rem; font-weight: 800; color: var(--neutral-900); line-height: 1.25; margin-bottom: 1.5rem;">
+                        Event Title
+                    </h1>
+
+                    <!-- Key Event Facts Grid -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; padding: 1.5rem; background: var(--lavender-bg); border-radius: var(--radius-lg); margin-bottom: 2rem;">
+                        <div>
+                            <span style="font-size: 0.8rem; font-weight: 600; color: var(--neutral-500); text-transform: uppercase;">Date & Time</span>
+                            <p id="event-dates" style="font-weight: 700; color: var(--neutral-900); margin-top: 0.2rem;">-</p>
+                        </div>
+                        <div>
+                            <span style="font-size: 0.8rem; font-weight: 600; color: var(--neutral-500); text-transform: uppercase;">Venue Location</span>
+                            <p id="event-venue" style="font-weight: 700; color: var(--neutral-900); margin-top: 0.2rem;">-</p>
+                        </div>
+                        <div>
+                            <span style="font-size: 0.8rem; font-weight: 600; color: var(--neutral-500); text-transform: uppercase;">Seats Available</span>
+                            <p id="event-seats-text" style="font-weight: 700; color: var(--purple-deep); margin-top: 0.2rem;">-</p>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--neutral-900); margin-bottom: 0.75rem;">About This Event</h3>
+                    <div id="event-description" style="font-size: 1.05rem; color: var(--neutral-700); line-height: 1.8; margin-bottom: 2.5rem; white-space: pre-line;">
+                    </div>
+
+                    <!-- Action Box -->
+                    <div style="padding: 2rem; background: var(--neutral-50); border: 1px solid var(--neutral-200); border-radius: var(--radius-lg); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.5rem;">
+                        <div>
+                            <h4 style="font-size: 1.15rem; font-weight: 700; color: var(--neutral-900);">Ready to participate?</h4>
+                            <p style="color: var(--neutral-600); font-size: 0.95rem;">
+                                Instant digital ticket confirmation with attendance QR code.
+                            </p>
+                        </div>
+                        <div>
+                            <button id="register-btn" class="btn btn-primary" style="font-size: 1.1rem; padding: 0.85rem 2rem;">
+                                🎫 Register for Event
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Ticket QR Success Modal -->
+    <div id="ticket-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 class="modal-title">🎉 Registration Confirmed!</h3>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body" style="text-align: center;">
+                <p style="color: var(--neutral-600); font-size: 0.95rem; margin-bottom: 1.5rem;">
+                    Your seat is officially reserved. Please present this QR ticket at the registration desk upon arrival.
+                </p>
+
+                <div style="background: var(--neutral-50); padding: 1.5rem; border-radius: var(--radius-lg); display: inline-block; border: 2px dashed var(--lavender-accent); margin-bottom: 1.5rem;">
+                    <img id="modal-qr-image" src="" alt="Ticket QR Code" style="width: 220px; height: 220px; margin: 0 auto; display: block;">
+                    <div id="modal-token-text" style="font-family: monospace; font-size: 0.75rem; color: var(--neutral-500); margin-top: 0.75rem;"></div>
+                </div>
+
+                <div style="display: flex; gap: 1rem; justify-content: center;">
+                    <a href="/dashboard.html" class="btn btn-primary">Go to My Tickets</a>
+                    <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Mount -->
+    <div id="footer-mount"></div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/navbar.js"></script>
+    <script>
+        let currentEvent = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const eventId = getUrlParam('id');
+            if (!eventId) {
+                window.location.href = '/events.html';
+                return;
+            }
+
+            await loadEventDetails(eventId);
+
+            document.getElementById('register-btn').addEventListener('click', handleRegister);
+        });
+
+        async function loadEventDetails(eventId) {
+            try {
+                const res = await apiRequest(`/events/${eventId}`);
+                currentEvent = res.data;
+
+                document.getElementById('event-loading').style.display = 'none';
+                document.getElementById('event-container').style.display = 'block';
+
+                document.title = `${currentEvent.title} — Eventora`;
+                document.getElementById('event-title').textContent = currentEvent.title;
+                document.getElementById('event-description').textContent = currentEvent.description;
+                document.getElementById('event-category').textContent = currentEvent.category || 'General';
+                document.getElementById('event-venue').textContent = currentEvent.venue;
+                document.getElementById('event-dates').textContent = `${formatDateTime(currentEvent.start_at)} – ${formatDateTime(currentEvent.end_at)}`;
+                
+                const collegeName = currentEvent.colleges?.name || 'Partner College';
+                document.getElementById('event-college-badge').textContent = `🏛️ ${collegeName}`;
+
+                const bannerImg = currentEvent.banner_url || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1200&q=80';
+                document.getElementById('event-banner').src = bannerImg;
+
+                const stats = currentEvent.stats || {};
+                const rem = stats.remaining_seats !== undefined ? stats.remaining_seats : currentEvent.capacity;
+                const isSoldOut = rem === 0;
+
+                document.getElementById('event-seats-text').textContent = isSoldOut ? 'Sold Out' : `${rem} of ${currentEvent.capacity} remaining`;
+
+                const btn = document.getElementById('register-btn');
+                if (isSoldOut) {
+                    btn.disabled = true;
+                    btn.textContent = 'Event Sold Out';
+                    btn.classList.remove('btn-primary');
+                    btn.classList.add('btn-secondary');
+                }
+            } catch (err) {
+                document.getElementById('event-loading').innerHTML = `
+                    <div style="color: var(--danger-600); font-weight: 600;">
+                        Failed to load event: ${escapeHtml(err.message)}
+                    </div>
+                `;
+            }
+        }
+
+        async function handleRegister() {
+            const user = getCurrentUser();
+            if (!user) {
+                showToast('Please sign in to register for events.', 'error');
+                setTimeout(() => {
+                    window.location.href = `/auth.html?redirect=${encodeURIComponent(window.location.href)}`;
+                }, 1000);
+                return;
+            }
+
+            const btn = document.getElementById('register-btn');
+            btn.disabled = true;
+            btn.textContent = 'Securing Ticket...';
+
+            try {
+                const res = await apiRequest('/registrations', {
+                    method: 'POST',
+                    body: JSON.stringify({ event_id: currentEvent.id })
+                });
+
+                showToast(res.message || 'Registered successfully!', 'success');
+
+                // Display QR code modal
+                if (res.qr_image) {
+                    document.getElementById('modal-qr-image').src = res.qr_image;
+                    document.getElementById('modal-token-text').textContent = `Ticket Token: ${res.qr_token}`;
+                    document.getElementById('ticket-modal').classList.add('active');
+                } else {
+                    setTimeout(() => {
+                        window.location.href = '/dashboard.html';
+                    }, 1000);
+                }
+            } catch (err) {
+                showToast(err.message, 'error');
+                btn.disabled = false;
+                btn.textContent = '🎫 Register for Event';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('ticket-modal').classList.remove('active');
+        }
+    </script>
+</body>
+</html>
+
